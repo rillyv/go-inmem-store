@@ -6,7 +6,10 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
 )
+
+var mu = sync.RWMutex{}
 
 var store = make(map[string]string)
 
@@ -45,14 +48,22 @@ func handleConnection(conn net.Conn) {
 				fmt.Fprintln(conn, "ERR usage: SET key value")
 				return
 			}
+
+			mu.Lock()
 			store[parts[1]] = parts[2]
+			mu.Unlock()
+
 			fmt.Fprintln(conn, "OK")
 		case "GET":
 			if len(parts) != 2 {
 				fmt.Fprintln(conn, "ERR usage: GET key")
 				return
 			}
+
+			mu.RLock()
 			val, ok := store[parts[1]]
+			mu.RUnlock()
+
 			if !ok {
 				fmt.Fprintln(conn, "NULL")
 			} else {
@@ -63,7 +74,11 @@ func handleConnection(conn net.Conn) {
 				fmt.Fprintln(conn, "ERR usage: DEL key")
 				return
 			}
+
+			mu.Lock()
 			delete(store, parts[1])
+			mu.Unlock()
+
 			fmt.Fprintln(conn, "OK")
 		case "PING":
 			if len(parts) != 1 {
