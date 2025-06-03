@@ -232,6 +232,15 @@ func handleConnection(conn net.Conn) {
 			for _, v := range paginatedKeys {
 				fmt.Fprintln(conn, v)
 			}
+		case "FLUSHALL":
+			if len(parts) != 1 {
+				fmt.Fprintln(conn, "ERR usage: FLUSHALL")
+			}
+
+			mu.Lock()
+			store = map[string]string{}
+			ttlStore = map[string]time.Time{}
+			mu.Unlock()
 		default:
 			fmt.Fprintln(conn, "ERR unknown command")
 		}
