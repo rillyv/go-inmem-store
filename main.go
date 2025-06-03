@@ -150,7 +150,6 @@ func handleConnection(conn net.Conn) {
 				continue
 			}
 
-			// first check if the key exists
 			mu.RLock()
 			_, ok := store[parts[1]]
 			if !ok {
@@ -168,6 +167,71 @@ func handleConnection(conn net.Conn) {
 			mu.Unlock()
 
 			fmt.Fprintln(conn, "OK")
+		case "TTL":
+			if len(parts) != 2 {
+				fmt.Fprintln(conn, "ERR usage: TTL key")
+				continue
+			}
+
+			mu.RLock()
+			ttl, ok := ttlStore[parts[1]]
+			mu.RUnlock()
+
+			if ok && (ttl.Unix() < time.Now().Unix()) {
+				mu.Lock()
+				delete(store, parts[1])
+				delete(ttlStore, parts[1])
+				mu.Unlock()
+
+				fmt.Fprintln(conn, "NULL")
+				continue
+			}
+
+			if !ok {
+				fmt.Fprintln(conn, "NULL")
+			} else {
+				fmt.Fprintln(conn, ttl.Unix() - time.Now().Unix())
+			}
+		case "KEYS":
+			if len(parts) != 3 {
+				fmt.Fprintln(conn, "ERR usage: KEYS offset limit")
+				continue
+			}
+
+			offset, err := strconv.Atoi(parts[1])
+			if err != nil {
+				fmt.Fprintln(conn, "ERR offset must be an integer")
+			}
+
+			limit, err := strconv.Atoi(parts[2])
+			if err != nil {
+				fmt.Fprintln(conn, "ERR limit must be an integer")
+			}
+
+			keys := []string{}
+
+			mu.RLock()
+			for k := range store {
+				keys = append(keys, k)
+			}
+			mu.RUnlock()
+
+			var end int
+			if (offset+limit) > len(keys) {
+				end = len(keys)
+			} else {
+				end = offset+limit
+			}
+
+			if (offset > len(keys)) {
+				continue
+			}
+
+			paginatedKeys := keys[offset : end]
+
+			for _, v := range paginatedKeys {
+				fmt.Fprintln(conn, v)
+			}
 		default:
 			fmt.Fprintln(conn, "ERR unknown command")
 		}
