@@ -17,7 +17,7 @@ func NewInMemoryStore() *InMemoryStore {
 	}
 
 	ttlStore := &TTLStore{
-		ttlStore: make(map[string]time.Time),
+		ttlStore:      make(map[string]time.Time),
 		inMemoryStore: inMemoryStore,
 	}
 
@@ -134,7 +134,7 @@ func (s *InMemoryStore) Expire(key string, ttlInSeconds int) string {
 }
 
 func (s *InMemoryStore) GetTtl(key string) int {
-	return s.ttl.inMemoryStore.GetTtl(key)
+	return s.ttl.GetTtl(key)
 }
 
 func (s *InMemoryStore) Keys(offset int, limit int) []string {
